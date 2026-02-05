@@ -34,25 +34,35 @@ def agent_response():
 # ---------------- API ENDPOINT ----------------
 @app.post("/honeypot")
 def honeypot(
-    payload: dict,
+    payload: dict | None = None,
     x_api_key: str = Header(None)
 ):
-    if x_api_key != API_KEY:
-        raise HTTPException(status_code=401, detail="Invalid API key")
+    try:
+        if x_api_key != API_KEY:
+            raise HTTPException(status_code=401, detail="Invalid API key")
 
-    message = payload.get("message", "")
-    conversation_id = payload.get("conversation_id", "unknown")
+        if payload is None:
+            payload = {}
 
-    scam_detected = detect_scam(message)
-    extracted = extract_intelligence(message)
+        message = str(payload.get("message", ""))
+        conversation_id = str(payload.get("conversation_id", "tester"))
 
-    return {
-        "conversation_id": conversation_id,
-        "scam_detected": scam_detected,
-        "agent_activated": scam_detected,
-        "agent_reply": agent_response() if scam_detected else "Thank you.",
-        "extracted_intelligence": extracted,
-        "metrics": {
-            "conversation_turns": 1
+        scam = detect_scam(message)
+
+        return {
+            "conversation_id": conversation_id,
+            "scam_detected": scam,
+            "agent_activated": scam,
+            "agent_reply": "Okay sir, please explain the process clearly." if scam else "Thank you.",
+            "extracted_intelligence": extract_intelligence(message),
+            "metrics": {
+                "conversation_turns": 1
+            }
         }
-    }
+
+    except Exception as e:
+        # NEVER crash — return valid JSON
+        return {
+            "error": "internal_error_handled",
+            "details": str(e)
+        }
